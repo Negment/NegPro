@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>合体プロキシ クライアント</title>
+<style>
+body { margin:0; font-family: sans-serif; background:#000; color:#fff; }
+header { 
+    display:flex; 
+    align-items:center; 
+    padding:8px; 
+    background:#111; 
+    position:fixed; 
+    top:0; 
+    left:0; 
+    right:0; 
+    z-index:10; 
+    box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+}
+#search { 
+    flex:1; 
+    margin:0 8px; 
+    padding:8px; 
+    border: 1px solid #333; 
+    border-radius: 4px; 
+    background: #222; 
+    color: #fff;
+}
+button {
+    padding: 8px 12px;
+    background: #4A90E2;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background 0.2s;
+}
+button:hover {
+    background: #357ABD;
+}
+#iframeContainer { 
+    margin-top:55px;
+    height: calc(100vh - 55px); 
+}
+iframe { 
+    width:100%; 
+    height:100%; 
+    border:none; 
+    background: #fff;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <input type="text" id="search" placeholder="URL (https://から) または検索キーワードを入力">
+  <button id="go">Go</button>
+</header>
+
+<div id="iframeContainer">
+  <iframe id="displayFrame" src="about:blank"></iframe>
+</div>
+
+<script>
+const searchInput = document.getElementById('search');
+const displayFrame = document.getElementById('displayFrame');
+const goButton = document.getElementById('go');
+
+// ------------------------------------------------------------------------------
+// 【重要】ここをあなたの Render URL に置き換えてください！
+const RENDER_URL = 'https://negpro.onrender.com/api/fetch'; 
+// ------------------------------------------------------------------------------
+
+goButton.onclick = async () => {
+    const val = searchInput.value.trim();
+    if (!val) {
+        alert("URLまたは検索キーワードを入力してください。");
+        return;
+    }
+
+    goButton.disabled = true;
+    goButton.textContent = '処理中...';
+    
+    displayFrame.src = 'about:blank';
+
+    try {
+        // Renderサーバーへ POST リクエストを送信
+        const res = await fetch(RENDER_URL, {
+            method:'POST',
+            headers:{ 
+                'Content-Type':'application/json' 
+            },
+            body: JSON.stringify({ 
+                // URLの形式によって body のキーを使い分ける
+                url: val.startsWith('http') ? val : '', 
+                query: val.startsWith('http') ? '' : val 
+            })
+        });
+
+        // 応答は必ずJSON形式を期待
+        const data = await res.json(); 
+        
+        if(data.success && data.data){
+            // 成功した場合、Workerが書き換えたHTMLデータを取得
+            const htmlContent = data.data; 
+            
+            // HTMLをBlobとして生成し、iframeにロード
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const blobURL = URL.createObjectURL(blob);
+            displayFrame.src = blobURL;
+            
+        } else {
+            // サーバー側でエラーが発生した場合
+            const errorMessage = data.error || `Unknown Error (Status: ${res.status})`;
+            alert(`プロキシ失敗: ${errorMessage}`);
+            
+            // エラー情報をiframeに表示
+            displayFrame.srcdoc = `<html><body style="padding: 20px; font-family: sans-serif;"><h1>アクセス失敗</h1><p style="color:red;">エラー詳細: ${errorMessage}</p><p>設定を確認してください。</p></body></html>`;
+        }
+    } catch(e){
+        // 通信レベルでのエラー
+        alert(`致命的な通信エラー: ネットワークまたはRenderへの接続を確認してください。詳細: ${e.message}`);
+    } finally {
+        // 処理が完了したらボタンを元に戻す
+        goButton.disabled = false;
+        goButton.textContent = 'Go';
+    }
+};
+
+</script>
+
+</body>
+</html>
