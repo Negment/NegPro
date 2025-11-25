@@ -5,10 +5,7 @@ import fetch from 'node-fetch';
 const app = express();
 app.use(cors()); 
 
-// ***************************************************************
-// WorkerのURLに置き換えてください！ (例: 'https://my-proxy-worker.workers.dev')
-const WORKER_URL = 'https://[あなたのWorker名].[ランダム文字列].workers.dev'; 
-// ***************************************************************
+const WORKER_URL = 'https://old-hill-026f.makerun01123.workers.dev'; 
 
 // RenderがクライアントからのJSONボディを処理できるようにする
 app.use(express.json());
